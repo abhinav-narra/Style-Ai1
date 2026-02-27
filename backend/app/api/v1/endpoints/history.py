@@ -1,0 +1,21 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
+
+from ....models.schemas import HistoryEntry, HistoryResponse
+from ....repositories.history import HistoryRepository
+from ...deps import history_repo_dep
+
+
+router = APIRouter()
+
+
+@router.get("/history/{user_id}", response_model=HistoryResponse)
+async def history(user_id: str, limit: int = 50, repo: HistoryRepository = Depends(history_repo_dep)):
+    rows = await repo.list_recent(user_id, limit=limit)
+    entries = [
+        HistoryEntry(user_id=r.user_id, outfit_id=r.outfit_id, created_at=r.created_at, payload=r.payload)
+        for r in rows
+    ]
+    return HistoryResponse(user_id=user_id, entries=entries)
+
