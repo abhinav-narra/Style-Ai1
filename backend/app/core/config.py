@@ -27,6 +27,9 @@ class Settings(BaseModel):
     jwt_secret: str = Field(default="dev-secret-change-me", alias="JWT_SECRET")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
 
+    unsplash_access_key: str | None = Field(default=None, alias="UNSPLASH_ACCESS_KEY")
+    pexels_api_key: str | None = Field(default=None, alias="PEXELS_API_KEY")
+
 
 _settings: Settings | None = None
 
@@ -44,6 +47,8 @@ def get_settings() -> Settings:
             "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
             "GROQ_API_KEY": os.getenv("GROQ_API_KEY"),
             "GROQ_MODEL": os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            "UNSPLASH_ACCESS_KEY": os.getenv("UNSPLASH_ACCESS_KEY"),
+            "PEXELS_API_KEY": os.getenv("PEXELS_API_KEY"),
         }
         _settings = Settings.model_validate(data)
     return _settings

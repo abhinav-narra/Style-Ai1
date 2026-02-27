@@ -254,7 +254,7 @@ export function ChatPage() {
     const formData = new FormData()
     formData.append("request_json", JSON.stringify(requestPayload))
 
-    const res = await fetch("http://127.0.0.1:8000/v1/recommend", {
+    const res = await fetch("http://localhost:8000/v1/recommend", {
       method: "POST",
       body: formData,
       headers: authToken
@@ -298,7 +298,7 @@ export function ChatPage() {
     return outfitTriggers.some((tr) => t.includes(tr))
   }
 
-  // Call Groq-powered /v1/chat endpoint
+  // Call backend /v1/chat endpoint
   const callGroqChat = async (userMessage: string): Promise<string> => {
     // Build conversation history from recent messages
     const history = messages.slice(-10).map((m) => ({
@@ -306,21 +306,23 @@ export function ChatPage() {
       content: m.content,
     }))
 
-    const res = await fetch("http://127.0.0.1:8000/v1/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: userMessage,
-        history,
-      }),
-    })
+    try {
+      const res = await fetch("http://localhost:8000/v1/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMessage,
+          history,
+        }),
+      })
 
-    if (!res.ok) {
-      throw new Error("Chat API error")
+      const data = await res.json()
+      if (data.reply) return data.reply
+    } catch (err) {
+      console.error("Chat API error:", err)
     }
 
-    const data = await res.json()
-    return data.reply || "I'm having trouble thinking right now. Try again!"
+    return "Stylist is thinking... try again"
   }
 
   const sendMessage = (content: string) => {

@@ -32,6 +32,7 @@ class RecommendRequest(BaseModel):
     style_preferences: list[str] = Field(default_factory=list)
     budget: str | None = None
     culture: str | None = None
+    gender: str | None = None
     image_base64: str | None = None
     extra_context: dict[str, Any] = Field(default_factory=dict)
 
@@ -56,6 +57,7 @@ class Outfit(BaseModel):
     price_tier: str | None = None
     brand: str | None = None
     culture: str = "western"
+    gender: Literal["male", "female", "unisex"] = "unisex"
     vibe_images: list[str] = Field(default_factory=list)
     color_palette: list[str] = Field(default_factory=list)
 

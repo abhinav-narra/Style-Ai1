@@ -19,6 +19,7 @@ class LlmContext:
     budget: str | None
     skin_tone: dict[str, Any] | None
     top_outfits: list[dict[str, Any]]
+    gender: str | None = None
     user_profile_summary: str | None = None
 
 
@@ -62,12 +63,13 @@ async def _openai_chat(ctx: LlmContext, settings: Settings) -> str:
     system = (
         "You are an expert fashion stylist. "
         "Return a short recommendation text (max 120 words) that explains why the top outfits work "
-        "for this user. Reference their style preferences when available."
+        "for this user. Reference their style preferences and explicitly consider their gender when appropriate."
     )
     if ctx.user_profile_summary:
         system += f" User style profile: {ctx.user_profile_summary}"
     user = {
         "user_id": ctx.user_id,
+        "gender": ctx.gender,
         "occasion": ctx.occasion,
         "style_preferences": ctx.style_preferences,
         "budget": ctx.budget,

@@ -15,7 +15,7 @@ export function SignupPage() {
     if (!email || !password) return
     setIsLoading(true)
     try {
-      const res = await fetch("http://127.0.0.1:8000/v1/auth/signup", {
+      const res = await fetch("http://localhost:8000/v1/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -28,7 +28,7 @@ export function SignupPage() {
       const data = await res.json()
       if (data.access_token) {
         setAuthToken(data.access_token)
-        const meRes = await fetch("http://127.0.0.1:8000/v1/auth/me", {
+        const meRes = await fetch("http://localhost:8000/v1/auth/me", {
           headers: {
             Authorization: `Bearer ${data.access_token}`,
           },

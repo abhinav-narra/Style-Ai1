@@ -20,6 +20,7 @@ class UserRow:
     password_hash: str
     created_at: datetime
     display_name: str | None
+    gender: str | None
 
 
 class UserRepository:
@@ -38,6 +39,7 @@ class UserRepository:
                         email TEXT NOT NULL UNIQUE,
                         password_hash TEXT NOT NULL,
                         display_name TEXT,
+                        gender TEXT,
                         created_at TEXT NOT NULL
                     )
                     """
@@ -46,15 +48,15 @@ class UserRepository:
 
         await anyio.to_thread.run_sync(_init)
 
-    async def create_user(self, *, user_id: str, email: str, password_hash: str, display_name: str | None = None) -> UserRow:
+    async def create_user(self, *, user_id: str, email: str, password_hash: str, display_name: str | None = None, gender: str | None = None) -> UserRow:
 
         created_at = _utc_now().isoformat()
 
         def _insert() -> None:
             with sqlite3.connect(self._db_path) as conn:
                 conn.execute(
-                    "INSERT INTO users(id, email, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (user_id, email, password_hash, display_name, created_at),
+                    "INSERT INTO users(id, email, password_hash, display_name, gender, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (user_id, email, password_hash, display_name, gender, created_at),
                 )
                 conn.commit()
 
@@ -64,6 +66,7 @@ class UserRepository:
             email=email,
             password_hash=password_hash,
             display_name=display_name,
+            gender=gender,
             created_at=_utc_now(),
         )
 
@@ -71,13 +74,13 @@ class UserRepository:
         def _select() -> Optional[UserRow]:
             with sqlite3.connect(self._db_path) as conn:
                 cur = conn.execute(
-                    "SELECT id, email, password_hash, display_name, created_at FROM users WHERE email=?",
+                    "SELECT id, email, password_hash, display_name, gender, created_at FROM users WHERE email=?",
                     (email,),
                 )
                 row = cur.fetchone()
                 if not row:
                     return None
-                uid, em, ph, dn, created_at = row
+                uid, em, ph, dn, gd, created_at = row
                 try:
                     created_dt = datetime.fromisoformat(created_at)
                 except Exception:
@@ -87,6 +90,7 @@ class UserRepository:
                     email=str(em),
                     password_hash=str(ph),
                     display_name=str(dn) if dn is not None else None,
+                    gender=str(gd) if gd is not None else None,
                     created_at=created_dt,
                 )
 
@@ -96,13 +100,13 @@ class UserRepository:
         def _select() -> Optional[UserRow]:
             with sqlite3.connect(self._db_path) as conn:
                 cur = conn.execute(
-                    "SELECT id, email, password_hash, display_name, created_at FROM users WHERE id=?",
+                    "SELECT id, email, password_hash, display_name, gender, created_at FROM users WHERE id=?",
                     (user_id,),
                 )
                 row = cur.fetchone()
                 if not row:
                     return None
-                uid, em, ph, dn, created_at = row
+                uid, em, ph, dn, gd, created_at = row
                 try:
                     created_dt = datetime.fromisoformat(created_at)
                 except Exception:
@@ -112,6 +116,7 @@ class UserRepository:
                     email=str(em),
                     password_hash=str(ph),
                     display_name=str(dn) if dn is not None else None,
+                    gender=str(gd) if gd is not None else None,
                     created_at=created_dt,
                 )
 

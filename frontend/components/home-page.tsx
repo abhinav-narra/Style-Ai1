@@ -53,6 +53,13 @@ const cultures = [
   { id: "korean", label: "Korean", icon: Heart, color: "from-rose-500 to-pink-500" },
 ]
 
+const genders = [
+  { id: "female", label: "Female" },
+  { id: "male", label: "Male" },
+  { id: "non-binary", label: "Non-binary" },
+  { id: "prefer-not", label: "Prefer not to say" },
+]
+
 export function HomePage() {
   const {
     selectedVibe,
@@ -61,6 +68,8 @@ export function HomePage() {
     setSelectedOccasion,
     selectedCulture,
     setSelectedCulture,
+    selectedGender,
+    setSelectedGender,
     uploadedPhoto,
     setUploadedPhoto,
     setCurrentPage,
@@ -117,6 +126,7 @@ export function HomePage() {
         occasion: selectedOccasion || undefined,
         style_preferences: selectedVibe ? [selectedVibe] : [],
         culture: selectedCulture || undefined,
+        gender: selectedGender || undefined,
       }
 
       const formData = new FormData()
@@ -128,7 +138,7 @@ export function HomePage() {
         headers["Authorization"] = `Bearer ${authToken}`
       }
 
-      const res = await fetch("http://127.0.0.1:8000/v1/recommend", {
+      const res = await fetch("http://localhost:8000/v1/recommend", {
         method: "POST",
         headers,
         body: formData,
@@ -197,7 +207,7 @@ export function HomePage() {
     }
   }
 
-  const canGenerate = selectedVibe && selectedOccasion && uploadedPhoto
+  const canGenerate = selectedVibe && selectedOccasion && selectedGender && uploadedPhoto
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-20 pb-24 md:pt-24">
@@ -396,8 +406,8 @@ export function HomePage() {
                   setSelectedCulture(isSelected ? null : culture.id)
                 }
                 className={`glass group relative flex flex-col items-center gap-2 rounded-2xl px-3 py-5 transition-all duration-300 ${isSelected
-                    ? "border-primary ring-2 ring-primary/30 shadow-lg"
-                    : "hover:border-primary/40 hover:scale-[1.02]"
+                  ? "border-primary ring-2 ring-primary/30 shadow-lg"
+                  : "hover:border-primary/40 hover:scale-[1.02]"
                   }`}
               >
                 <div
@@ -414,6 +424,30 @@ export function HomePage() {
                     <Sparkles className="h-3 w-3 text-primary-foreground" />
                   </div>
                 )}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Gender Selector */}
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+          Step 5 &middot; Select Your Gender
+        </h2>
+        <div className="flex flex-wrap gap-3">
+          {genders.map((g) => {
+            const isSelected = selectedGender === g.id
+            return (
+              <button
+                key={g.id}
+                onClick={() => setSelectedGender(isSelected ? null : g.id)}
+                className={`glass flex-1 min-w-[120px] items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-300 ${isSelected
+                  ? "border-primary ring-2 ring-primary/30 shadow-md text-primary bg-primary/5"
+                  : "hover:border-primary/40 hover:bg-muted/50 text-foreground"
+                  }`}
+              >
+                {g.label}
               </button>
             )
           })}
@@ -446,7 +480,8 @@ export function HomePage() {
         <p className="mt-3 text-center text-sm text-muted-foreground">
           {!uploadedPhoto && "Upload a photo, "}
           {!selectedVibe && "select a vibe, "}
-          {!selectedOccasion && "pick an occasion "}
+          {!selectedOccasion && "pick an occasion, "}
+          {!selectedGender && "select your gender "}
           to unlock the magic
         </p>
       )}

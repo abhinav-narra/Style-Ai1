@@ -1,0 +1,12 @@
+
+--- MALE + MINIMAL + WORK +  ---
+[54.7] Pastel Blue Oxford (Tags: ['office', 'work', 'preppy', 'clean']) (Culture: western)
+[54.3] Charcoal Blazer (Tags: ['minimal', 'work', 'office', 'clean', 'cool']) (Culture: western)
+
+--- FEMALE + PARTY + PARTY +  ---
+[57.75] Oversized Graphic Tee (Tags: ['street', 'streetwear', 'modern', 'concert', 'party']) (Culture: western)
+[53.2] Draped Saree Gown (Tags: ['party', 'wedding', 'date', 'fusion', 'glamour']) (Culture: fusion)
+
+--- MALE + MINIMAL + WORK + INDIAN ---
+[54.7] Pastel Blue Oxford (Tags: ['office', 'work', 'preppy', 'clean']) (Culture: western)
+[54.3] Charcoal Blazer (Tags: ['minimal', 'work', 'office', 'clean', 'cool']) (Culture: western)

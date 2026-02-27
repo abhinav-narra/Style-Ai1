@@ -20,6 +20,7 @@ async def _user_row_to_model(row: UserRow) -> UserBase:
         id=row.id,
         email=row.email,
         display_name=row.display_name,
+        gender=row.gender,
         created_at=row.created_at,
     )
 
@@ -41,6 +42,7 @@ async def signup(
         email=payload.email,
         password_hash=password_hash,
         display_name=payload.display_name,
+        gender=payload.gender,
     )
 
     access_token = create_access_token({"sub": user_id}, settings=settings)

@@ -14,12 +14,11 @@ import {
   Crown,
   X,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 const STATS = [
-  { label: "Outfits Saved", value: "24", icon: Heart },
-  { label: "Style Score", value: "92", icon: TrendingUp },
-  { label: "Looks Generated", value: "156", icon: Sparkles },
+  { label: "Outfits Saved", icon: Heart },
+  { label: "Looks Generated", icon: Sparkles },
 ]
 
 const STYLE_TAGS = [
@@ -31,8 +30,32 @@ const STYLE_TAGS = [
 ]
 
 export function ProfilePage() {
-  const { savedOutfits, toggleSaveOutfit, setCurrentPage } = useApp()
+  const { savedOutfits, toggleSaveOutfit, setCurrentPage, currentUser, logout, authToken } = useApp()
   const [activeTab, setActiveTab] = useState<"saved" | "history">("saved")
+  const [historyItems, setHistoryItems] = useState<any[]>([])
+  const [historyCount, setHistoryCount] = useState(0)
+
+  // Fetch history when tab is clicked or component mounts
+  useEffect(() => {
+    if (!authToken) return
+    fetch("http://localhost:8000/v1/history", {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.entries) {
+          setHistoryItems(data.entries)
+          setHistoryCount(data.entries.length)
+        }
+      })
+      .catch((err) => console.error("Failed to fetch history:", err))
+  }, [authToken])
+
+  const displayName = currentUser?.displayName || currentUser?.email?.split('@')[0] || "User"
+  const handleSignOut = () => {
+    logout()
+    setCurrentPage("home")
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-20 pb-24 md:pt-24">
@@ -46,12 +69,8 @@ export function ProfilePage() {
         <div className="relative px-6 pb-6">
           {/* Avatar */}
           <div className="relative -mt-14 mb-4 inline-block">
-            <div className="relative h-24 w-24 overflow-hidden rounded-3xl border-4 border-background shadow-xl md:h-28 md:w-28">
-              <img
-                src="/images/avatar-1.jpg"
-                alt="Profile photo"
-                className="h-full w-full object-cover"
-              />
+            <div className="relative h-24 w-24 overflow-hidden rounded-3xl border-4 border-background bg-secondary flex items-center justify-center shadow-xl md:h-28 md:w-28 text-4xl text-primary font-bold">
+              {displayName.charAt(0).toUpperCase()}
             </div>
             <button
               className="absolute -right-1 -bottom-1 flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg"
@@ -71,16 +90,21 @@ export function ProfilePage() {
                   className="text-2xl font-bold text-foreground"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
-                  Alex Rivera
+                  {displayName}
                 </h1>
                 <span className="rounded-lg bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
                   PRO
                 </span>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                @alexdrip &middot; Fashion enthusiast & trendsetter
+                @{displayName.toLowerCase().replace(/\s+/g, '')} &middot; Fashion enthusiast & trendsetter
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
+                {currentUser?.gender && (
+                  <span className="rounded-lg bg-primary/20 px-2.5 py-1 text-xs font-semibold text-primary capitalize">
+                    {currentUser.gender.replace("-", " ")}
+                  </span>
+                )}
                 {STYLE_TAGS.map((tag) => (
                   <span
                     key={tag}
@@ -127,7 +151,7 @@ export function ProfilePage() {
                 className="text-2xl font-bold text-foreground"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                {stat.value}
+                {stat.label === "Outfits Saved" ? savedOutfits.length : historyCount}
               </span>
               <span className="text-xs text-muted-foreground">{stat.label}</span>
             </div>
@@ -139,22 +163,20 @@ export function ProfilePage() {
       <div className="mb-6 flex gap-1 rounded-2xl bg-secondary p-1">
         <button
           onClick={() => setActiveTab("saved")}
-          className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
-            activeTab === "saved"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
+          className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${activeTab === "saved"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+            }`}
         >
           <Heart className="mr-2 inline-block h-4 w-4" />
           Saved ({savedOutfits.length})
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
-            activeTab === "history"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
+          className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${activeTab === "history"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+            }`}
         >
           <Sparkles className="mr-2 inline-block h-4 w-4" />
           History
@@ -217,33 +239,53 @@ export function ProfilePage() {
         )
       ) : (
         <div className="space-y-3">
-          {[
-            { date: "Today", count: 4, vibe: "Streetwear", occ: "Concert" },
-            { date: "Yesterday", count: 3, vibe: "Minimalist", occ: "Date Night" },
-            { date: "Feb 24", count: 5, vibe: "Y2K", occ: "Party" },
-            { date: "Feb 22", count: 2, vibe: "Coastal", occ: "School" },
-          ].map((session) => (
-            <div
-              key={session.date}
-              className="glass flex items-center justify-between rounded-2xl px-4 py-4"
-            >
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {session.vibe} &times; {session.occ}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {session.date} &middot; {session.count} outfits generated
+          {historyItems.length > 0 ? (
+            historyItems.map((entry: any, i: number) => {
+              const outfit = entry.payload
+              const date = new Date(entry.created_at).toLocaleDateString()
+              return (
+                <div
+                  key={i}
+                  className="glass flex items-center justify-between rounded-2xl px-4 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    {outfit?.image && (
+                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-secondary">
+                        <img src={outfit.image} alt={outfit.name} className="h-full w-full object-cover" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {outfit?.name || "Generated Outfit"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {date} &middot; {outfit?.vibe || "Custom"} vibe
+                      </p>
+                    </div>
+                  </div>
+                  <ShoppingBag className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )
+            })
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl bg-secondary/50 py-16">
+              <div className="text-center">
+                <p className="font-semibold text-foreground">No history yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your generated outfits will appear here.
                 </p>
               </div>
-              <ShoppingBag className="h-5 w-5 text-muted-foreground" />
             </div>
-          ))}
+          )}
         </div>
       )}
 
       {/* Sign Out */}
       <div className="mt-10 flex justify-center">
-        <button className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-destructive">
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-destructive"
+        >
           <LogOut className="h-4 w-4" />
           Sign Out
         </button>

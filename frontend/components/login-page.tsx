@@ -14,7 +14,7 @@ export function LoginPage() {
     if (!email || !password) return
     setIsLoading(true)
     try {
-      const res = await fetch("http://127.0.0.1:8000/v1/auth/login", {
+      const res = await fetch("http://localhost:8000/v1/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -28,7 +28,7 @@ export function LoginPage() {
       if (data.access_token) {
         setAuthToken(data.access_token)
         // hydrate user from /auth/me
-        const meRes = await fetch("http://127.0.0.1:8000/v1/auth/me", {
+        const meRes = await fetch("http://localhost:8000/v1/auth/me", {
           headers: {
             Authorization: `Bearer ${data.access_token}`,
           },

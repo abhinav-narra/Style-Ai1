@@ -32,6 +32,8 @@ interface AppState {
   setSelectedOccasion: (occasion: string | null) => void
   selectedCulture: string | null
   setSelectedCulture: (culture: string | null) => void
+  selectedGender: string | null
+  setSelectedGender: (gender: string | null) => void
   uploadedPhoto: string | null
   setUploadedPhoto: (photo: string | null) => void
   outfitResults: OutfitResult[]
@@ -41,9 +43,9 @@ interface AppState {
   isGenerating: boolean
   setIsGenerating: (gen: boolean) => void
   authToken: string | null
-  currentUser: { id: string; email: string; displayName?: string | null } | null
+  currentUser: { id: string; email: string; displayName?: string | null; gender?: string | null } | null
   setAuthToken: (token: string | null) => void
-  setCurrentUser: (user: { id: string; email: string; displayName?: string | null } | null) => void
+  setCurrentUser: (user: { id: string; email: string; displayName?: string | null; gender?: string | null } | null) => void
   logout: () => void
 }
 
@@ -54,12 +56,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedVibe, setSelectedVibe] = useState<string | null>(null)
   const [selectedOccasion, setSelectedOccasion] = useState<string | null>(null)
   const [selectedCulture, setSelectedCulture] = useState<string | null>(null)
+  const [selectedGender, setSelectedGender] = useState<string | null>(null)
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null)
   const [outfitResults, setOutfitResults] = useState<OutfitResult[]>([])
   const [savedOutfits, setSavedOutfits] = useState<OutfitResult[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [authToken, setAuthTokenState] = useState<string | null>(null)
-  const [currentUser, setCurrentUserState] = useState<{ id: string; email: string; displayName?: string | null } | null>(null)
+  const [currentUser, setCurrentUserState] = useState<{ id: string; email: string; displayName?: string | null; gender?: string | null } | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -67,7 +70,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (token) {
       setAuthTokenState(token)
       // Try to hydrate current user
-      fetch("http://127.0.0.1:8000/v1/auth/me", {
+      fetch("http://localhost:8000/v1/auth/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -79,9 +82,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
               id: data.id,
               email: data.email,
               displayName: data.display_name ?? null,
+              gender: data.gender ?? null,
             })
             // Hydrate saved outfits from the backend
-            fetch("http://127.0.0.1:8000/v1/saved-outfits", {
+            fetch("http://localhost:8000/v1/saved-outfits", {
               headers: { Authorization: `Bearer ${token}` },
             })
               .then((r) => (r.ok ? r.json() : []))
@@ -113,7 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const setCurrentUser = (user: { id: string; email: string; displayName?: string | null } | null) => {
+  const setCurrentUser = (user: { id: string; email: string; displayName?: string | null; gender?: string | null } | null) => {
     setCurrentUserState(user)
   }
 
@@ -129,7 +133,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (exists) {
         // Unsave — fire DELETE to backend
         if (authToken) {
-          fetch(`http://127.0.0.1:8000/v1/delete-outfit/${encodeURIComponent(outfit.id)}`, {
+          fetch(`http://localhost:8000/v1/delete-outfit/${encodeURIComponent(outfit.id)}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${authToken}` },
           }).catch(() => { })
@@ -138,7 +142,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       // Save — fire POST to backend
       if (authToken) {
-        fetch("http://127.0.0.1:8000/v1/save-outfit", {
+        fetch("http://localhost:8000/v1/save-outfit", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -162,6 +166,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSelectedOccasion,
         selectedCulture,
         setSelectedCulture,
+        selectedGender,
+        setSelectedGender,
         uploadedPhoto,
         setUploadedPhoto,
         outfitResults,

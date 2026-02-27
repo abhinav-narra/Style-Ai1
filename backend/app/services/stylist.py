@@ -11,6 +11,7 @@ from ..repositories.saved_outfits import SavedOutfitRepository
 from ..utils.images import decode_base64_image_to_bgr, decode_image_bytes_to_bgr, extract_color_palette_labels
 from .diversity import DiversityEngine
 from .face_detection import FaceDetector
+from .image_search import ImageSearchService
 from .llm import LlmContext, LlmRecommender
 from .outfit_scoring import OutfitCatalog, OutfitScoringEngine, ScoringContext
 from .skin_tone import SkinToneDetector
@@ -35,6 +36,7 @@ class StylistService:
         self._diversity = DiversityEngine()
         self._llm = LlmRecommender()
         self._memory = UserMemoryEngine()
+        self._image_search = ImageSearchService(settings)
 
     async def analyze_image_bytes(self, image_bytes: bytes) -> AnalyzeArtifacts:
         bgr = decode_image_bytes_to_bgr(image_bytes)
@@ -113,6 +115,7 @@ class StylistService:
             vibe=vibe,
             palette_temperature=palette_temperature,
             culture=req.culture,
+            gender=req.gender,
             user_profile=user_profile,
         )
 
@@ -147,9 +150,50 @@ class StylistService:
             budget=req.budget,
             skin_tone=skin.model_dump() if skin else None,
             top_outfits=[s.model_dump() for s in top],
+            gender=req.gender,
             user_profile_summary=user_profile.summary_text() if user_profile.has_history else None,
         )
         text = await self._llm.generate(llm_ctx, self._settings)
+
+        # Enhance top outfits with dynamic images from Unsplash/Pexels before returning
+        for scored in top:
+            # Build strict query string: "{gender} {vibe} {occasion} {culture} outfit {color}"
+            q_parts = []
+            g = req.gender.lower() if req.gender else ""
+            if g == "male":
+                q_parts.append("male menswear")
+            elif g == "female":
+                q_parts.append("female womenswear")
+            elif g in ["non-binary", "unisex", "prefer-not", "prefer not to say"]:
+                q_parts.append("unisex androgynous fashion")
+            elif g:
+                q_parts.append(g)
+
+            if vibe:
+                q_parts.append(vibe)
+            if req.occasion:
+                q_parts.append(req.occasion)
+            if req.culture:
+                q_parts.append(req.culture)
+            
+            q_parts.append("outfit")
+            
+            # Incorporate top palette color if available
+            if scored.outfit.palette:
+                q_parts.append(scored.outfit.palette[0])
+            
+            query = " ".join(q_parts)
+            
+            img_result = await self._image_search.search_outfit_images(query)
+            if img_result:
+                scored.outfit.image = img_result.url
+                if not scored.outfit.vibe_images:
+                    scored.outfit.vibe_images = []
+                # Ensure the main image is also the first vibe image
+                if scored.outfit.vibe_images:
+                    scored.outfit.vibe_images[0] = img_result.url
+                else:
+                    scored.outfit.vibe_images.append(img_result.url)
 
         # Persist top outfit to history (memory)
         if top:
