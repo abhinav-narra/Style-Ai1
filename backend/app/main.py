@@ -16,6 +16,8 @@ from .core.config import get_settings
 from .core.errors import AppError, DependencyMissingError, InvalidInputError
 from .core.logging import configure_logging, new_correlation_id, set_correlation_id
 from .repositories.history import HistoryRepository
+from .repositories.user import UserRepository
+from .repositories.saved_outfits import SavedOutfitRepository
 from .services.stylist import StylistService
 
 logger = logging.getLogger(__name__)
@@ -44,10 +46,18 @@ def create_app() -> FastAPI:
     # startup
     @app.on_event("startup")
     async def _startup() -> None:
-        repo = HistoryRepository(settings.database_path)
-        await repo.init()
-        app.state.history_repo = repo
-        app.state.stylist = StylistService(settings, repo)
+        history_repo = HistoryRepository(settings.database_path)
+        user_repo = UserRepository(settings.database_path)
+        saved_repo = SavedOutfitRepository(settings.database_path)
+
+        await history_repo.init()
+        await user_repo.init()
+        await saved_repo.init()
+
+        app.state.history_repo = history_repo
+        app.state.user_repo = user_repo
+        app.state.saved_outfits = saved_repo
+        app.state.stylist = StylistService(settings, history_repo, saved_repo=saved_repo)
         logger.info("startup_complete")
 
     # logging middleware

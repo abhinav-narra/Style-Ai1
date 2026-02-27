@@ -26,6 +26,9 @@ interface Message {
     image: string
     items: string[]
   }
+  // Full structured response from stylist engine
+  recommended_outfit?: any
+  alternatives?: any[]
 }
 
 const INITIAL_MESSAGES: Message[] = [
@@ -33,77 +36,292 @@ const INITIAL_MESSAGES: Message[] = [
     id: "1",
     role: "assistant",
     content:
-      "Hey bestie! I'm your AI stylist. Tell me what you're looking for today -- a full outfit, accessory recs, or style advice? I got you.",
+      "Hey bestie! I'm your AI stylist, fully wired into the fashion brain. Tell me your vibe, occasion, budget, or ask for accessories and I'll pull real outfit ideas for you.",
     timestamp: new Date(),
     suggestions: [
-      "Style me for a date night",
-      "What shoes go with wide-leg jeans?",
-      "Build me a capsule wardrobe",
-      "Trending colors this season",
+      "Party outfit under 3k",
+      "Style me for a date",
+      "Casual everyday look",
+      "Add accessories to my last outfit",
     ],
   },
 ]
 
-const AI_RESPONSES: Record<string, Message> = {
-  "Style me for a date night": {
-    id: "",
-    role: "assistant",
-    content:
-      "Ooh date night! Love that for you. I'd go with something that's effortlessly chic but still makes a statement. Think a satin midi skirt with a fitted top and strappy heels. Add a dainty gold necklace for that extra sparkle. Here's a look I put together:",
-    timestamp: new Date(),
-    outfitPreview: {
-      name: "Date Night Elegance",
-      image: "/images/outfit-2.jpg",
-      items: ["Silk Cami Top - Aritzia", "Satin Midi Skirt - Reformation", "Strappy Heels - Steve Madden", "Gold Pendant - Mejuri"],
-    },
-    suggestions: ["Show me more options", "Make it more casual", "Add a jacket"],
-  },
-  "What shoes go with wide-leg jeans?": {
-    id: "",
-    role: "assistant",
-    content:
-      "Wide-leg jeans are SO versatile! Here are my top picks:\n\n1. Platform sneakers -- keeps it casual but adds height\n2. Pointed-toe mules -- instant polish\n3. Chunky loafers -- the it-girl choice rn\n4. Ankle boots -- perfect for fall/winter\n\nThe key is to make sure the hem hits right at the shoe. Want me to style a full look with any of these?",
-    timestamp: new Date(),
-    suggestions: ["Style with platform sneakers", "Show loafer outfits", "Best brands for wide-leg jeans"],
-  },
-  "Build me a capsule wardrobe": {
-    id: "",
-    role: "assistant",
-    content:
-      "A capsule wardrobe? You're speaking my language! Here's the foundation you need -- 15 essential pieces that mix and match into 50+ outfits:\n\nTops: White tee, black bodysuit, striped button-down, knit sweater\nBottoms: Dark wash jeans, tailored trousers, midi skirt\nOuters: Blazer, leather jacket, trench coat\nShoes: White sneakers, black boots, heeled sandals\nBags: Crossbody, structured tote\n\nWant me to build specific outfits from these pieces?",
-    timestamp: new Date(),
-    suggestions: ["Build outfits from these", "Affordable brands for these", "Add trendy pieces"],
-  },
-  "Trending colors this season": {
-    id: "",
-    role: "assistant",
-    content:
-      "The color forecast is giving main character energy this season! Here are the top trending shades:\n\nButter Yellow -- the new neutral, works in everything\nCherry Red -- bold, confident, statement pieces\nSlate Blue -- sophisticated and calming\nEspresso Brown -- rich and luxurious\nSoft Sage -- nature-inspired, super wearable\n\nMy hot take? Pair butter yellow with espresso brown for a combo that'll stop people in their tracks. Want me to style some color combos for you?",
-    timestamp: new Date(),
-    suggestions: ["Style butter yellow looks", "How to wear cherry red", "Color combos for my skin tone"],
-  },
+type StylistRecommendResponse = {
+  user_id: string
+  created_at: string
+  recommendation_text: string
+  outfits: {
+    outfit: {
+      outfit_id: string
+      items: {
+        category: string
+        name: string
+        colors?: string[]
+        tags?: string[]
+      }[]
+      palette?: string[]
+      tags?: string[]
+    }
+    score: number
+    reasons?: string[]
+    diversity_penalty?: number
+  }[]
 }
 
-const DEFAULT_RESPONSE: Message = {
-  id: "",
-  role: "assistant",
-  content:
-    "Great question! Let me think about that... I'd recommend exploring some trending styles right now. The fashion scene is really moving toward effortless layering and bold accessories. Want me to put together a specific look for you based on your vibe?",
-  timestamp: new Date(),
-  suggestions: ["Show me street style", "Formal outfit ideas", "Accessory recommendations"],
+type ParsedIntent = {
+  occasion?: string | null
+  stylePreferences: string[]
+  budget?: string | null
+  isBudgetFollowup: boolean
+  isAccessoriesFollowup: boolean
+}
+
+const DEFAULT_OUTFIT_IMAGE = "/images/outfit-1.jpg"
+
+function parseIntent(input: string, lastIntent?: ParsedIntent | null): ParsedIntent {
+  const text = input.toLowerCase()
+
+  let occasion: string | null = null
+  if (text.includes("party")) occasion = "party"
+  else if (text.includes("date")) occasion = "date"
+  else if (text.includes("casual")) occasion = "casual"
+  else if (text.includes("work") || text.includes("office") || text.includes("interview")) occasion = "work"
+  else if (text.includes("college") || text.includes("school") || text.includes("class"))
+    occasion = "casual"
+  else if (text.includes("beach") || text.includes("vacation"))
+    occasion = "casual"
+
+  const stylePreferences: string[] = []
+  if (text.includes("streetwear")) stylePreferences.push("streetwear")
+  if (text.includes("minimal") || text.includes("minimalist")) stylePreferences.push("minimalist")
+  if (text.includes("formal")) stylePreferences.push("formal")
+  if (text.includes("casual")) stylePreferences.push("casual")
+  if (text.includes("college") || text.includes("school")) stylePreferences.push("everyday")
+  if (text.includes("beach") || text.includes("vacation")) stylePreferences.push("coastal")
+  if (text.includes("interview")) stylePreferences.push("classic")
+  if (text.includes("confident")) {
+    stylePreferences.push("modern")
+    stylePreferences.push("elevated")
+  }
+  if (text.includes("accessor")) stylePreferences.push("accessories")
+  if (text.includes("cheap") || text.includes("budget") || text.includes("affordable")) {
+    stylePreferences.push("budget-friendly")
+  }
+
+  // Budget parsing: "under 3k", "under 3000", "budget", "cheap"
+  let budget: string | null = null
+  const underMatch = text.match(/under\s+([\d,.]+k?)/)
+  if (underMatch) {
+    budget = `under ${underMatch[1]}`
+  } else if (text.includes("cheap") || text.includes("budget") || text.includes("affordable")) {
+    budget = "low"
+  }
+
+  const isBudgetFollowup =
+    !!lastIntent &&
+    (text.includes("cheap version") ||
+      text.includes("cheaper") ||
+      text.includes("budget version") ||
+      text.includes("make it cheaper") ||
+      (text.includes("cheap") || text.includes("budget") || text.includes("affordable")))
+
+  const isAccessoriesFollowup =
+    !!lastIntent &&
+    (text.includes("add accessories") ||
+      text.includes("accessories") ||
+      text.includes("jewelry") ||
+      text.includes("earrings") ||
+      text.includes("bag") ||
+      text.includes("belt"))
+
+  return {
+    occasion: occasion ?? lastIntent?.occasion ?? null,
+    stylePreferences: stylePreferences.length ? stylePreferences : lastIntent?.stylePreferences ?? [],
+    budget: budget ?? lastIntent?.budget ?? null,
+    isBudgetFollowup,
+    isAccessoriesFollowup,
+  }
+}
+
+function mapBackendToChatMessage(
+  data: StylistRecommendResponse,
+  intent: ParsedIntent
+): { message: string; recommended_outfit?: any; alternatives?: any[]; outfitPreview?: Message["outfitPreview"] } {
+  const text = data.recommendation_text || "Here's a look I pulled for you."
+  const outfits = data.outfits || []
+  const top = outfits[0]
+  const alts = outfits.slice(1, 3)
+
+  const recommended_outfit = top?.outfit
+  const alternatives = alts.map((o) => o.outfit)
+
+  let outfitPreview: Message["outfitPreview"] | undefined
+  if (recommended_outfit) {
+    let itemNames: string[] = []
+
+    if (intent.isAccessoriesFollowup) {
+      const items = (recommended_outfit.items || []) as any[]
+      const shoesItem =
+        items.find((i) => typeof i.category === "string" && i.category.toLowerCase().includes("shoe")) ||
+        items.find((i) => typeof i.category === "string" && i.category.toLowerCase().includes("sneaker"))
+      const palette: string[] = (recommended_outfit.palette || []) as string[]
+      const primaryColor = (palette[0] || "black") as string
+
+      itemNames = [
+        `Shoes: ${shoesItem?.name || "clean white sneakers to ground the look"}`,
+        `Watch: slim ${primaryColor} or metal watch to keep it polished`,
+        `Bag: structured ${primaryColor} bag to pull everything together`,
+      ]
+    } else {
+      itemNames =
+        recommended_outfit.items?.map((i: any) => `${i.name} (${i.category})`) || []
+    }
+
+    outfitPreview = {
+      name:
+        intent.isBudgetFollowup && intent.budget === "low"
+          ? "Budget-Friendly Version"
+          : intent.isAccessoriesFollowup
+            ? "Accessories: shoes, watch, bag"
+            : "Styled Outfit",
+      image: DEFAULT_OUTFIT_IMAGE,
+      items: itemNames,
+    }
+  }
+
+  // Conversational wrapper
+  const intro = intent.isBudgetFollowup
+    ? "Got you, let's make this more wallet-friendly.\n\n"
+    : intent.isAccessoriesFollowup
+      ? "Love that you're thinking about accessories.\n\n"
+      : ""
+
+  const message = `${intro}${text}`
+
+  return { message, recommended_outfit, alternatives, outfitPreview }
 }
 
 export function ChatPage() {
-  const { setCurrentPage } = useApp()
+  const { setCurrentPage, currentUser, authToken } = useApp()
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES)
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
+  const [lastStylistResponse, setLastStylistResponse] = useState<{
+    backend: StylistRecommendResponse
+    intent: ParsedIntent
+  } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const userIdRef = useRef<string>("")
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  if (!userIdRef.current) {
+    if (currentUser) {
+      userIdRef.current = currentUser.id
+    } else if (typeof window !== "undefined") {
+      const existing = window.sessionStorage.getItem("drip-user-id")
+      if (existing) {
+        userIdRef.current = existing
+      } else {
+        const id = `web-${crypto.randomUUID?.() || Date.now().toString(36)}`
+        userIdRef.current = id
+        window.sessionStorage.setItem("drip-user-id", id)
+      }
+    }
+  }
+
+  const callStylistRecommend = async (userText: string) => {
+    const intent = parseIntent(userText, lastStylistResponse?.intent)
+
+    const requestPayload = {
+      user_id: userIdRef.current || "web-anon",
+      occasion: intent.occasion,
+      style_preferences: intent.stylePreferences,
+      budget: intent.budget,
+      image_base64: null,
+      extra_context: {
+        user_message: userText,
+        is_budget_followup: intent.isBudgetFollowup,
+        is_accessories_followup: intent.isAccessoriesFollowup,
+        last_outfit_id: lastStylistResponse?.backend.outfits?.[0]?.outfit?.outfit_id ?? null,
+      },
+    }
+
+    const formData = new FormData()
+    formData.append("request_json", JSON.stringify(requestPayload))
+
+    const res = await fetch("http://127.0.0.1:8000/v1/recommend", {
+      method: "POST",
+      body: formData,
+      headers: authToken
+        ? {
+          Authorization: `Bearer ${authToken}`,
+        }
+        : undefined,
+    })
+
+    if (!res.ok) {
+      throw new Error("Stylist backend error")
+    }
+
+    const data: StylistRecommendResponse = await res.json()
+    const mapped = mapBackendToChatMessage(data, intent)
+
+    const aiMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: mapped.message,
+      timestamp: new Date(),
+      outfitPreview: mapped.outfitPreview,
+      recommended_outfit: mapped.recommended_outfit,
+      alternatives: mapped.alternatives,
+    }
+
+    setLastStylistResponse({ backend: data, intent })
+    setMessages((prev) => [...prev, aiMessage])
+  }
+
+  // Detect if the message is an outfit request (should call /recommend)
+  const isOutfitRequest = (text: string): boolean => {
+    const t = text.toLowerCase()
+    const outfitTriggers = [
+      "style me", "outfit for", "dress me", "what to wear",
+      "recommend", "suggest an outfit", "pick an outfit", "create a look",
+      "show me outfits", "give me an outfit", "curate", "put together",
+      "party outfit", "date outfit", "work outfit", "casual outfit",
+      "outfit under", "look for", "dress for",
+    ]
+    return outfitTriggers.some((tr) => t.includes(tr))
+  }
+
+  // Call Groq-powered /v1/chat endpoint
+  const callGroqChat = async (userMessage: string): Promise<string> => {
+    // Build conversation history from recent messages
+    const history = messages.slice(-10).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }))
+
+    const res = await fetch("http://127.0.0.1:8000/v1/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: userMessage,
+        history,
+      }),
+    })
+
+    if (!res.ok) {
+      throw new Error("Chat API error")
+    }
+
+    const data = await res.json()
+    return data.reply || "I'm having trouble thinking right now. Try again!"
+  }
 
   const sendMessage = (content: string) => {
     if (!content.trim()) return
@@ -119,16 +337,59 @@ export function ChatPage() {
     setInput("")
     setIsTyping(true)
 
-    setTimeout(() => {
-      const response = AI_RESPONSES[content] || DEFAULT_RESPONSE
-      const aiMessage: Message = {
-        ...response,
-        id: (Date.now() + 1).toString(),
-        timestamp: new Date(),
+    // If it's an outfit request, call the stylist backend
+    if (isOutfitRequest(content)) {
+      ; (async () => {
+        try {
+          await callStylistRecommend(content)
+        } catch (err) {
+          console.error(err)
+          const fallback: Message = {
+            id: (Date.now() + 2).toString(),
+            role: "assistant",
+            content:
+              "I tried to reach the styling engine but something went wrong. Try asking again in a moment!",
+            timestamp: new Date(),
+          }
+          setMessages((prev) => [...prev, fallback])
+        } finally {
+          setIsTyping(false)
+        }
+      })()
+      return
+    }
+
+    // For all other messages, call Groq-powered chat
+    ; (async () => {
+      try {
+        const reply = await callGroqChat(content)
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: reply,
+          timestamp: new Date(),
+          suggestions: [
+            "Style me for a date",
+            "Party outfit under 3k",
+            "What colors suit me?",
+            "What's trending now?",
+          ],
+        }
+        setMessages((prev) => [...prev, aiMessage])
+      } catch (err) {
+        console.error(err)
+        const fallback: Message = {
+          id: (Date.now() + 2).toString(),
+          role: "assistant",
+          content:
+            "I'm having trouble connecting right now. Try again in a moment! 💫",
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, fallback])
+      } finally {
+        setIsTyping(false)
       }
-      setMessages((prev) => [...prev, aiMessage])
-      setIsTyping(false)
-    }, 1500)
+    })()
   }
 
   return (
@@ -138,10 +399,11 @@ export function ChatPage() {
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4 md:h-16">
           <button
             onClick={() => setCurrentPage("home")}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:hidden"
-            aria-label="Go back"
+            className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            aria-label="Back to Style"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Back to Style</span>
           </button>
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/15">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -175,17 +437,15 @@ export function ChatPage() {
             {messages.map((message) => (
               <div key={message.id}>
                 <div
-                  className={`flex gap-3 ${
-                    message.role === "user" ? "flex-row-reverse" : "flex-row"
-                  }`}
+                  className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : "flex-row"
+                    }`}
                 >
                   {/* Avatar */}
                   <div
-                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${
-                      message.role === "assistant"
-                        ? "bg-primary/15"
-                        : "bg-secondary"
-                    }`}
+                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${message.role === "assistant"
+                      ? "bg-primary/15"
+                      : "bg-secondary"
+                      }`}
                   >
                     {message.role === "assistant" ? (
                       <Bot className="h-4 w-4 text-primary" />
@@ -196,11 +456,10 @@ export function ChatPage() {
 
                   {/* Bubble */}
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "glass"
-                    }`}
+                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "glass"
+                      }`}
                   >
                     <p className="whitespace-pre-line text-sm leading-relaxed">
                       {message.content}
@@ -234,11 +493,10 @@ export function ChatPage() {
                     )}
 
                     <p
-                      className={`mt-1.5 text-[10px] ${
-                        message.role === "user"
-                          ? "text-primary-foreground/60"
-                          : "text-muted-foreground"
-                      }`}
+                      className={`mt-1.5 text-[10px] ${message.role === "user"
+                        ? "text-primary-foreground/60"
+                        : "text-muted-foreground"
+                        }`}
                     >
                       {message.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",
@@ -317,11 +575,10 @@ export function ChatPage() {
             <button
               type="submit"
               disabled={!input.trim()}
-              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-all ${
-                input.trim()
-                  ? "bg-primary text-primary-foreground shadow-lg"
-                  : "bg-muted text-muted-foreground"
-              }`}
+              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-all ${input.trim()
+                ? "bg-primary text-primary-foreground shadow-lg"
+                : "bg-muted text-muted-foreground"
+                }`}
               aria-label="Send message"
             >
               <Send className="h-4 w-4" />

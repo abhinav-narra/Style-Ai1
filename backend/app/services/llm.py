@@ -19,6 +19,7 @@ class LlmContext:
     budget: str | None
     skin_tone: dict[str, Any] | None
     top_outfits: list[dict[str, Any]]
+    user_profile_summary: str | None = None
 
 
 class LlmRecommender:
@@ -35,11 +36,20 @@ def _template(ctx: LlmContext) -> str:
     prefs = ", ".join(ctx.style_preferences) if ctx.style_preferences else "your vibe"
     occ = ctx.occasion or "your occasion"
     lines = [f"For {occ}, here are options aligned with {prefs}:"]
+    if ctx.user_profile_summary:
+        lines.append(f"Based on your style history: {ctx.user_profile_summary}")
     for i, o in enumerate(ctx.top_outfits[:3], start=1):
         outfit = o.get("outfit", {})
         items = outfit.get("items", [])
         item_names = [it.get("name") for it in items if isinstance(it, dict) and it.get("name")]
-        lines.append(f"{i}) " + "; ".join(item_names[:4]))
+        conf = o.get("confidence", 0)
+        reason = o.get("explanation", "")
+        line = f"{i}) " + "; ".join(item_names[:4])
+        if conf:
+            line += f" (confidence: {conf:.0f}%)"
+        if reason:
+            line += f" — {reason}"
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -51,8 +61,11 @@ async def _openai_chat(ctx: LlmContext, settings: Settings) -> str:
 
     system = (
         "You are an expert fashion stylist. "
-        "Return a short recommendation text (max 120 words) that explains why the top outfits work."
+        "Return a short recommendation text (max 120 words) that explains why the top outfits work "
+        "for this user. Reference their style preferences when available."
     )
+    if ctx.user_profile_summary:
+        system += f" User style profile: {ctx.user_profile_summary}"
     user = {
         "user_id": ctx.user_id,
         "occasion": ctx.occasion,

@@ -21,7 +21,7 @@ const navItems = [
 ]
 
 export function AppNavbar() {
-  const { currentPage, setCurrentPage } = useApp()
+  const { currentPage, setCurrentPage, currentUser, logout } = useApp()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -65,6 +65,21 @@ export function AppNavbar() {
                 </button>
               )
             })}
+            {currentUser ? (
+              <button
+                onClick={logout}
+                className="ml-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                <span className="hidden md:inline">Logout</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setCurrentPage("login")}
+                className="ml-2 flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-lg hover:bg-primary/90"
+              >
+                Login
+              </button>
+            )}
           </nav>
 
           <button
@@ -134,6 +149,17 @@ export function AppNavbar() {
               </button>
             )
           })}
+          <button
+            onClick={() => setCurrentPage(currentUser ? "profile" : "login")}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-4 py-1.5 text-muted-foreground"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl">
+              <User className="h-5 w-5" />
+            </div>
+            <span className="text-[10px] font-medium">
+              {currentUser ? "Account" : "Login"}
+            </span>
+          </button>
         </div>
       </nav>
     </>

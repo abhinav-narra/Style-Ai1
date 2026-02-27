@@ -50,7 +50,8 @@ class SkinToneDetector:
         rgb = (r, g, b)
         hex_color = f"#{r:02x}{g:02x}{b:02x}"
         tone = _bucket_by_luma(rgb)
-        return SkinToneResult(skin_tone=SkinTone(rgb=rgb, hex=hex_color, tone=tone))
+        undertone = _detect_undertone(rgb)
+        return SkinToneResult(skin_tone=SkinTone(rgb=rgb, hex=hex_color, tone=tone, undertone=undertone))
 
 
 def _require_numpy() -> Any:
@@ -74,4 +75,19 @@ def _bucket_by_luma(rgb: tuple[int, int, int]) -> SkinToneLabel:
     if luma >= 105:
         return "tan"
     return "deep"
+
+
+def _detect_undertone(rgb: tuple[int, int, int]) -> str:
+    """Classify undertone as warm/cool/neutral from skin RGB values."""
+    r, g, b = rgb
+    # Warm undertones have more red/yellow; cool have more blue/pink
+    # Use the red-to-blue ratio as primary signal
+    if r == 0 and b == 0:
+        return "neutral"
+    ratio = r / max(b, 1)
+    if ratio > 1.3:
+        return "warm"
+    elif ratio < 0.9:
+        return "cool"
+    return "neutral"
 

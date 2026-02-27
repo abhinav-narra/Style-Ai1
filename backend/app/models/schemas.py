@@ -18,6 +18,7 @@ class SkinTone(BaseModel):
     rgb: tuple[int, int, int]
     hex: str
     tone: Literal["very_light", "light", "medium", "tan", "deep"]
+    undertone: Literal["warm", "cool", "neutral"] = "neutral"
 
 
 class AnalyzeResponse(BaseModel):
@@ -30,6 +31,7 @@ class RecommendRequest(BaseModel):
     occasion: str | None = None
     style_preferences: list[str] = Field(default_factory=list)
     budget: str | None = None
+    culture: str | None = None
     image_base64: str | None = None
     extra_context: dict[str, Any] = Field(default_factory=dict)
 
@@ -39,13 +41,23 @@ class OutfitItem(BaseModel):
     name: str
     colors: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+    price: str | None = None
+    brand: str | None = None
+    image: str | None = None
 
 
 class Outfit(BaseModel):
     outfit_id: str
+    image: str | None = None
     items: list[OutfitItem]
     palette: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+    trend_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    price_tier: str | None = None
+    brand: str | None = None
+    culture: str = "western"
+    vibe_images: list[str] = Field(default_factory=list)
+    color_palette: list[str] = Field(default_factory=list)
 
 
 class ScoredOutfit(BaseModel):
@@ -53,6 +65,8 @@ class ScoredOutfit(BaseModel):
     score: float
     reasons: list[str] = Field(default_factory=list)
     diversity_penalty: float = 0.0
+    confidence: float = 0.0
+    explanation: str = ""
 
 
 class RecommendResponse(BaseModel):

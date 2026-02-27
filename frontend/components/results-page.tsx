@@ -53,9 +53,8 @@ function LoadingScreen() {
         {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className={`h-2 rounded-full transition-all duration-500 ${
-              i <= tipIndex ? "w-8 bg-primary" : "w-2 bg-muted"
-            }`}
+            className={`h-2 rounded-full transition-all duration-500 ${i <= tipIndex ? "w-8 bg-primary" : "w-2 bg-muted"
+              }`}
           />
         ))}
       </div>
@@ -136,9 +135,8 @@ function OutfitCard({
         <div className="absolute top-3 right-3 flex gap-2">
           <button
             onClick={() => toggleSaveOutfit(outfit)}
-            className={`glass flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${
-              isSaved ? "text-red-500" : "text-foreground hover:text-red-400"
-            }`}
+            className={`glass flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${isSaved ? "text-red-500" : "text-foreground hover:text-red-400"
+              }`}
             aria-label={isSaved ? "Unsave outfit" : "Save outfit"}
           >
             <Heart className={`h-5 w-5 ${isSaved ? "fill-current" : ""}`} />
@@ -211,7 +209,7 @@ function OutfitCard({
                 </div>
 
                 <span className="text-sm font-semibold text-primary whitespace-nowrap">
-                  ₹{item.price}
+                  {item.price}
                 </span>
               </div>
             ))}

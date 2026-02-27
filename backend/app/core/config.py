@@ -21,6 +21,12 @@ class Settings(BaseModel):
     openai_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MODEL")
     openai_base_url: str = Field(default="https://api.openai.com/v1", alias="OPENAI_BASE_URL")
 
+    groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
+    groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
+
+    jwt_secret: str = Field(default="dev-secret-change-me", alias="JWT_SECRET")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+
 
 _settings: Settings | None = None
 
@@ -36,6 +42,8 @@ def get_settings() -> Settings:
             "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
             "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            "GROQ_API_KEY": os.getenv("GROQ_API_KEY"),
+            "GROQ_MODEL": os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
         }
         _settings = Settings.model_validate(data)
     return _settings

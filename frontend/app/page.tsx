@@ -6,11 +6,18 @@ import { HomePage } from "@/components/home-page"
 import { ResultsPage } from "@/components/results-page"
 import { ProfilePage } from "@/components/profile-page"
 import { ChatPage } from "@/components/chat-page"
+import { LoginPage } from "@/components/login-page"
+import { SignupPage } from "@/components/signup-page"
 
 function AppContent() {
-  const { currentPage } = useApp()
+  const { currentPage, currentUser } = useApp()
 
+  if (currentPage === "login") return <LoginPage />
+  if (currentPage === "signup") return <SignupPage />
   if (currentPage === "chat") {
+    if (!currentUser) {
+      return <LoginPage />
+    }
     return <ChatPage />
   }
 
@@ -26,8 +33,8 @@ function AppContent() {
       <AppNavbar />
       <main className="relative z-10">
         {currentPage === "home" && <HomePage />}
-        {currentPage === "results" && <ResultsPage />}
-        {currentPage === "profile" && <ProfilePage />}
+        {currentPage === "results" && (currentUser ? <ResultsPage /> : <LoginPage />)}
+        {currentPage === "profile" && (currentUser ? <ProfilePage /> : <LoginPage />)}
       </main>
     </div>
   )

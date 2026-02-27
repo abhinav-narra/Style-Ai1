@@ -51,6 +51,9 @@ def _features_from_payload(payload: dict) -> set[str]:
     oid = payload.get("outfit_id")
     if isinstance(oid, str):
         feats.add(f"oid:{oid}")
+    img = payload.get("image")
+    if isinstance(img, str) and img:
+        feats.add(f"img:{img}")
     for t in payload.get("tags", []) or []:
         if isinstance(t, str):
             feats.add(f"tag:{t.lower()}")

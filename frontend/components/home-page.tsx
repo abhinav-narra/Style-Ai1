@@ -21,6 +21,8 @@ import {
   GraduationCap,
   X,
   Image as ImageIcon,
+  Globe,
+  MapPin,
 } from "lucide-react"
 
 const vibes = [
@@ -43,67 +45,12 @@ const occasions = [
   { id: "school", label: "School", icon: GraduationCap },
 ]
 
-const MOCK_RESULTS = [
-  {
-    id: "1",
-    name: "Urban Edge Look",
-    image: "/images/outfit-1.jpg",
-    vibe: "streetwear",
-    occasion: "concert",
-    items: [
-      { name: "Oversized Graphic Tee", brand: "Stussy", price: "$65" },
-      { name: "Wide Leg Cargo Pants", brand: "Carhartt WIP", price: "$128" },
-      { name: "Chunky Platform Sneakers", brand: "New Balance", price: "$145" },
-      { name: "Gold Chain Layered Set", brand: "Mejuri", price: "$88" },
-    ],
-    matchScore: 97,
-    saved: false,
-  },
-  {
-    id: "2",
-    name: "Elegant Evening",
-    image: "/images/outfit-2.jpg",
-    vibe: "minimalist",
-    occasion: "date",
-    items: [
-      { name: "Silk Slip Dress", brand: "Reformation", price: "$218" },
-      { name: "Strappy Heeled Sandals", brand: "Steve Madden", price: "$99" },
-      { name: "Structured Clutch", brand: "Mansur Gavriel", price: "$295" },
-      { name: "Pearl Drop Earrings", brand: "Mejuri", price: "$68" },
-    ],
-    matchScore: 94,
-    saved: false,
-  },
-  {
-    id: "3",
-    name: "Sport Luxe",
-    image: "/images/outfit-3.jpg",
-    vibe: "minimalist",
-    occasion: "gym",
-    items: [
-      { name: "Cropped Hoodie", brand: "Nike", price: "$85" },
-      { name: "High-Waist Leggings", brand: "Alo Yoga", price: "$118" },
-      { name: "Retro Running Shoes", brand: "Asics", price: "$130" },
-      { name: "Minimal Baseball Cap", brand: "Aritzia", price: "$38" },
-    ],
-    matchScore: 91,
-    saved: false,
-  },
-  {
-    id: "4",
-    name: "Boho Dreamer",
-    image: "/images/outfit-4.jpg",
-    vibe: "cottagecore",
-    occasion: "school",
-    items: [
-      { name: "Floral Midi Dress", brand: "Free People", price: "$148" },
-      { name: "Woven Leather Sandals", brand: "Madewell", price: "$88" },
-      { name: "Straw Tote Bag", brand: "Lack of Color", price: "$125" },
-      { name: "Layered Boho Necklaces", brand: "Anthropologie", price: "$58" },
-    ],
-    matchScore: 88,
-    saved: false,
-  },
+const cultures = [
+  { id: "western", label: "Western", icon: Globe, color: "from-blue-500 to-indigo-500" },
+  { id: "indian", label: "Indian", icon: MapPin, color: "from-orange-500 to-amber-500" },
+  { id: "fusion", label: "Fusion", icon: Sparkles, color: "from-violet-500 to-fuchsia-500" },
+  { id: "middle_eastern", label: "Middle Eastern", icon: Star, color: "from-emerald-500 to-teal-500" },
+  { id: "korean", label: "Korean", icon: Heart, color: "from-rose-500 to-pink-500" },
 ]
 
 export function HomePage() {
@@ -112,11 +59,15 @@ export function HomePage() {
     setSelectedVibe,
     selectedOccasion,
     setSelectedOccasion,
+    selectedCulture,
+    setSelectedCulture,
     uploadedPhoto,
     setUploadedPhoto,
     setCurrentPage,
     setOutfitResults,
     setIsGenerating,
+    authToken,
+    currentUser,
   } = useApp()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -146,54 +97,107 @@ export function HomePage() {
   )
 
   const handleGenerate = async () => {
-  if (!uploadedPhoto) {
-    alert("Upload photo first")
-    return
-  }
-
-  setIsGenerating(true)
-  setCurrentPage("results")
-
-  try {
-    // convert base64 preview to file
-    const imgRes = await fetch(uploadedPhoto)
-    const blob = await imgRes.blob()
-    const file = new File([blob], "photo.jpg", { type: blob.type })
-
-    const formData = new FormData()
-    formData.append("file", file)
-
-    const res = await fetch("http://127.0.0.1:8000/v1/analyze", {
-      method: "POST",
-      body: formData,
-    })
-
-    if (!res.ok) {
-      throw new Error("Backend error")
+    if (!uploadedPhoto) {
+      alert("Upload photo first")
+      return
     }
 
-    const data = await res.json()
-    console.log("AI RESPONSE:", data)
+    setIsGenerating(true)
+    setCurrentPage("results")
 
-    // Format result for UI (temporary)
-    const formatted = MOCK_RESULTS.map((item, i) => ({
-  ...item,
-  id: "ai-" + i,
-  image: uploadedPhoto,
-  vibe: selectedVibe || item.vibe,
-  occasion: selectedOccasion || item.occasion,
-}))
+    try {
+      // Convert base64 data URL to a File
+      const imgRes = await fetch(uploadedPhoto)
+      const blob = await imgRes.blob()
+      const file = new File([blob], "photo.jpg", { type: blob.type })
 
-    setOutfitResults(formatted)
-  } catch (err) {
-    console.error(err)
-    alert("Backend connection failed")
+      // Build the request JSON with user context
+      const requestData: Record<string, any> = {
+        user_id: currentUser?.id || `guest_${Date.now()}`,
+        occasion: selectedOccasion || undefined,
+        style_preferences: selectedVibe ? [selectedVibe] : [],
+        culture: selectedCulture || undefined,
+      }
+
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("request_json", JSON.stringify(requestData))
+
+      const headers: Record<string, string> = {}
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`
+      }
+
+      const res = await fetch("http://127.0.0.1:8000/v1/recommend", {
+        method: "POST",
+        headers,
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.detail || `Backend error: ${res.status}`)
+      }
+
+      const data = await res.json()
+      console.log("AI RECOMMENDATION:", data)
+
+      // Clear uploaded photo from memory
+      setUploadedPhoto(null)
+
+      // Map backend ScoredOutfit[] → frontend OutfitResult[]
+      const formatted = (data.outfits || []).map((scored: any, i: number) => {
+        const outfit = scored.outfit || {}
+        const items = (outfit.items || []).map((item: any) => ({
+          name: item.name || "Item",
+          brand: item.brand || "",
+          price: item.price || "",
+          image: item.image || "",
+        }))
+
+        // Map color names to hex for UI display
+        const colorMap: Record<string, string> = {
+          black: "#1a1a1a", white: "#f5f5f5", grey: "#9ca3af",
+          charcoal: "#374151", navy: "#1e3a5f", brown: "#8B4513",
+          olive: "#556B2F", beige: "#D2B48C", tan: "#C19A6B",
+          "dark-brown": "#3E2723", "deep-green": "#1B5E20",
+          "light-blue": "#87CEEB", "pastel-blue": "#AEC6CF",
+          stone: "#B0A89D", pink: "#F8BBD0", red: "#EF5350",
+          gold: "#FFD700", silver: "#C0C0C0",
+        }
+
+        return {
+          id: outfit.outfit_id || `rec-${Date.now()}-${i}`,
+          title: items.map((it: any) => it.name).slice(0, 2).join(" + "),
+          vibe: selectedVibe || (outfit.tags?.[0] || ""),
+          occasion: selectedOccasion || "",
+          vibe_images: outfit.vibe_images?.length
+            ? outfit.vibe_images
+            : [outfit.image || ""],
+          color_palette: outfit.color_palette?.length
+            ? outfit.color_palette
+            : (outfit.palette || []).map((c: string) => colorMap[c] || "#888888"),
+          score: scored.score || 0,
+          confidence: scored.confidence || 0,
+          explanation: scored.explanation || "",
+          items,
+          matchScore: Math.round(scored.score || 0),
+          saved: false,
+        }
+      })
+
+      setOutfitResults(formatted)
+    } catch (err: any) {
+      console.error(err)
+      setUploadedPhoto(null)
+      alert(`Could not get recommendations: ${err.message || "Unknown error"}`)
+      setOutfitResults([])
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
-  setIsGenerating(false)
-}
-
-  const canGenerate = selectedVibe && selectedOccasion
+  const canGenerate = selectedVibe && selectedOccasion && uploadedPhoto
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-20 pb-24 md:pt-24">
@@ -232,11 +236,10 @@ export function HomePage() {
           onDragLeave={() => setIsDragOver(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`glass group relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 ${
-            isDragOver
-              ? "border-primary ring-4 ring-primary/20"
-              : "hover:border-primary/50"
-          } ${uploadedPhoto ? "p-0" : "p-8 md:p-12"}`}
+          className={`glass group relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 ${isDragOver
+            ? "border-primary ring-4 ring-primary/20"
+            : "hover:border-primary/50"
+            } ${uploadedPhoto ? "p-0" : "p-8 md:p-12"}`}
         >
           <input
             ref={fileInputRef}
@@ -316,16 +319,14 @@ export function HomePage() {
                 onClick={() =>
                   setSelectedVibe(isSelected ? null : vibe.id)
                 }
-                className={`glass group relative flex flex-col items-center gap-2 rounded-2xl px-3 py-5 transition-all duration-300 ${
-                  isSelected
-                    ? "border-primary ring-2 ring-primary/30 shadow-lg"
-                    : "hover:border-primary/40 hover:scale-[1.02]"
-                }`}
+                className={`glass group relative flex flex-col items-center gap-2 rounded-2xl px-3 py-5 transition-all duration-300 ${isSelected
+                  ? "border-primary ring-2 ring-primary/30 shadow-lg"
+                  : "hover:border-primary/40 hover:scale-[1.02]"
+                  }`}
               >
                 <div
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${vibe.color} transition-transform duration-300 ${
-                    isSelected ? "scale-110" : "group-hover:scale-105"
-                  }`}
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${vibe.color} transition-transform duration-300 ${isSelected ? "scale-110" : "group-hover:scale-105"
+                    }`}
                 >
                   <Icon className="h-5 w-5 text-white" />
                 </div>
@@ -358,22 +359,61 @@ export function HomePage() {
                 onClick={() =>
                   setSelectedOccasion(isSelected ? null : occ.id)
                 }
-                className={`glass group flex flex-col items-center gap-2 rounded-2xl px-2 py-4 transition-all duration-300 ${
-                  isSelected
-                    ? "border-primary ring-2 ring-primary/30 shadow-lg"
-                    : "hover:border-primary/40 hover:scale-[1.02]"
-                }`}
+                className={`glass group flex flex-col items-center gap-2 rounded-2xl px-2 py-4 transition-all duration-300 ${isSelected
+                  ? "border-primary ring-2 ring-primary/30 shadow-lg"
+                  : "hover:border-primary/40 hover:scale-[1.02]"
+                  }`}
               >
                 <Icon
-                  className={`h-6 w-6 transition-colors ${
-                    isSelected
-                      ? "text-primary"
-                      : "text-muted-foreground group-hover:text-foreground"
-                  }`}
+                  className={`h-6 w-6 transition-colors ${isSelected
+                    ? "text-primary"
+                    : "text-muted-foreground group-hover:text-foreground"
+                    }`}
                 />
                 <span className="text-xs font-medium text-foreground">
                   {occ.label}
                 </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Culture Selector */}
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+          Step 4 &middot; Choose Your Culture
+          <span className="ml-2 text-xs font-normal text-muted-foreground/60">(optional)</span>
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {cultures.map((culture) => {
+            const Icon = culture.icon
+            const isSelected = selectedCulture === culture.id
+            return (
+              <button
+                key={culture.id}
+                onClick={() =>
+                  setSelectedCulture(isSelected ? null : culture.id)
+                }
+                className={`glass group relative flex flex-col items-center gap-2 rounded-2xl px-3 py-5 transition-all duration-300 ${isSelected
+                    ? "border-primary ring-2 ring-primary/30 shadow-lg"
+                    : "hover:border-primary/40 hover:scale-[1.02]"
+                  }`}
+              >
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${culture.color} transition-transform duration-300 ${isSelected ? "scale-110" : "group-hover:scale-105"
+                    }`}
+                >
+                  <Icon className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-sm font-medium text-foreground">
+                  {culture.label}
+                </span>
+                {isSelected && (
+                  <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                    <Sparkles className="h-3 w-3 text-primary-foreground" />
+                  </div>
+                )}
               </button>
             )
           })}
@@ -385,29 +425,29 @@ export function HomePage() {
         <button
           onClick={handleGenerate}
           disabled={!canGenerate}
-          className={`group flex items-center gap-3 rounded-2xl px-10 py-4 text-base font-semibold transition-all duration-300 ${
-            canGenerate
-              ? "bg-primary text-primary-foreground shadow-xl hover:shadow-2xl hover:scale-[1.02] animate-pulse-glow"
-              : "cursor-not-allowed bg-muted text-muted-foreground"
-          }`}
+          className={`group flex items-center gap-3 rounded-2xl px-10 py-4 text-base font-semibold transition-all duration-300 ${canGenerate
+            ? "bg-primary text-primary-foreground shadow-xl hover:shadow-2xl hover:scale-[1.02] animate-pulse-glow"
+            : "cursor-not-allowed bg-muted text-muted-foreground"
+            }`}
         >
           <Sparkles
-            className={`h-5 w-5 transition-transform ${
-              canGenerate ? "group-hover:rotate-12" : ""
-            }`}
+            className={`h-5 w-5 transition-transform ${canGenerate ? "group-hover:rotate-12" : ""
+              }`}
           />
           Generate Outfits
           <ArrowRight
-            className={`h-5 w-5 transition-transform ${
-              canGenerate ? "group-hover:translate-x-1" : ""
-            }`}
+            className={`h-5 w-5 transition-transform ${canGenerate ? "group-hover:translate-x-1" : ""
+              }`}
           />
         </button>
       </div>
 
       {!canGenerate && (
         <p className="mt-3 text-center text-sm text-muted-foreground">
-          Select a vibe and occasion to unlock the magic
+          {!uploadedPhoto && "Upload a photo, "}
+          {!selectedVibe && "select a vibe, "}
+          {!selectedOccasion && "pick an occasion "}
+          to unlock the magic
         </p>
       )}
     </div>
