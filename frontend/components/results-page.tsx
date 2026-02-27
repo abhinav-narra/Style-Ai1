@@ -72,27 +72,64 @@ function OutfitCard({
 }) {
   const { savedOutfits, toggleSaveOutfit } = useApp()
   const [expanded, setExpanded] = useState(false)
+  const [mainImageError, setMainImageError] = useState(false)
   const isSaved = savedOutfits.some((o) => o.id === outfit.id)
+
+  // Get the best available main image
+  const getMainImage = () => {
+    if (!mainImageError) {
+      // Try vibe_images array (new backend)
+      if (outfit.vibe_images && outfit.vibe_images.length > 0) {
+        return outfit.vibe_images[0]
+      }
+      // Try vibeImage (alternative field name)
+      if (outfit.vibeImage) {
+        return outfit.vibeImage
+      }
+      // Try vibe_image (another alternative)
+      if (outfit.vibe_image) {
+        return outfit.vibe_image
+      }
+      // Try images array
+      if (outfit.images && outfit.images.length > 0) {
+        return outfit.images[0]
+      }
+      // Try first item image
+      if (outfit.items && outfit.items.length > 0 && outfit.items[0].image) {
+        return outfit.items[0].image
+      }
+      // Fallback to old image field
+      if (outfit.image) {
+        return outfit.image
+      }
+    }
+    // Ultimate fallback - fashion image
+    return "https://images.unsplash.com/photo-1520975916090-3105956dac38?w=800"
+  }
 
   return (
     <div
       className="glass animate-slide-up overflow-hidden rounded-2xl"
       style={{ animationDelay: `${index * 200}ms`, animationFillMode: "both" }}
     >
-      {/* Image */}
+      {/* VIBE IMAGE (instead of uploaded face) */}
       <div className="relative aspect-[4/5] overflow-hidden">
+
+        {/* Main image with fallback */}
         <img
-          src={outfit.image}
+          src={getMainImage()}
           alt={outfit.name}
           className="h-full w-full object-cover animate-reveal"
           style={{ animationDelay: `${index * 200 + 300}ms`, animationFillMode: "both" }}
+          onError={() => setMainImageError(true)}
         />
+
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
 
         {/* Match Score */}
         <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-sm font-bold text-primary-foreground shadow-lg">
           <TrendingUp className="h-3.5 w-3.5" />
-          {outfit.matchScore}% Match
+          {Math.round(outfit.score || outfit.matchScore || 90)}% Match
         </div>
 
         {/* Actions */}
@@ -120,10 +157,10 @@ function OutfitCard({
             className="mb-1 text-xl font-bold text-foreground"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            {outfit.name}
+            {outfit.title || outfit.name}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {outfit.items.length} pieces curated for you
+            {outfit.items?.length || 0} pieces curated for you
           </p>
         </div>
       </div>
@@ -147,19 +184,34 @@ function OutfitCard({
 
         {expanded && (
           <div className="mt-3 space-y-2">
-            {outfit.items.map((item, i) => (
+            {outfit.items?.map((item, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between rounded-xl bg-secondary/50 px-3 py-2.5"
+                className="flex items-center gap-3 rounded-xl bg-secondary/50 px-3 py-2.5"
               >
-                <div>
-                  <p className="text-sm font-medium text-foreground">
+                {/* product image with error handling */}
+                <div className="h-12 w-12 flex-shrink-0 rounded-lg bg-secondary overflow-hidden">
+                  <img
+                    src={item.image || "https://via.placeholder.com/60x60?text=Product"}
+                    alt={item.name}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "https://via.placeholder.com/60x60?text=Product"
+                    }}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {item.name}
                   </p>
-                  <p className="text-xs text-muted-foreground">{item.brand}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {item.brand}
+                  </p>
                 </div>
-                <span className="text-sm font-semibold text-primary">
-                  {item.price}
+
+                <span className="text-sm font-semibold text-primary whitespace-nowrap">
+                  ₹{item.price}
                 </span>
               </div>
             ))}
@@ -176,6 +228,15 @@ function OutfitCard({
 
 export function ResultsPage() {
   const { outfitResults, isGenerating, setCurrentPage } = useApp()
+
+  // DEBUG: Log the first outfit to see its structure (remove after fixing)
+  useEffect(() => {
+    if (outfitResults.length > 0) {
+      console.log("First outfit data:", outfitResults[0])
+      console.log("Vibe images:", outfitResults[0].vibe_images)
+      console.log("Color palette:", outfitResults[0].color_palette)
+    }
+  }, [outfitResults])
 
   return (
     <div className="mx-auto max-w-5xl px-4 pt-20 pb-24 md:pt-24">
@@ -203,6 +264,23 @@ export function ResultsPage() {
               {outfitResults.length} outfits curated just for you
             </p>
           </div>
+
+          {/* COLOR PALETTE - Show if available */}
+          {outfitResults?.[0]?.color_palette && outfitResults[0].color_palette.length > 0 && (
+            <div className="mb-8 flex flex-col items-center">
+              <p className="mb-3 text-sm text-muted-foreground">Your best colors</p>
+              <div className="flex gap-3 flex-wrap justify-center">
+                {outfitResults[0].color_palette.map((c: string, i: number) => (
+                  <div
+                    key={i}
+                    className="h-10 w-10 rounded-full border-2 border-white shadow-lg"
+                    style={{ background: c }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {outfitResults.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
